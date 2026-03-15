@@ -11,3 +11,6 @@ rq
 python-multipart
 python-dotenv
 pydantic
+chromadb
+sentence-transformers
+langchain-huggingface

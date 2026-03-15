@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from app.api.routes import router
 
-app = FastAPI(title="AI Codebase Assistant")
+app = FastAPI(title="Codebase Intelligence Platform")
 
 app.include_router(router)
 
+
 @app.get("/")
-def health():
-    return {"status": "AI Codebase Assistant running"}
+def root():
+    return {
+        "status": "running",
+        "message": "Codebase Intelligence Platform is running"
+    }
