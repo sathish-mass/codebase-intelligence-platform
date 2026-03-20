@@ -13,10 +13,15 @@ from app.services.vector_store import (
     index_documents,
     get_collection_stats,
     search_similar_chunks,
+    normalize_workspace_id,
 )
 
 from app.services.answer_service import build_grounded_answer
 from app.services.generation_service import build_generation_output
+from app.services.file_writer import write_generated_code
+
+
+
 
 router = APIRouter()
 
@@ -27,15 +32,23 @@ class ScanRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: int = 5
+    workspace_path: str | None = None
 
 class AskRequest(BaseModel):
     question: str
     top_k: int = 5
+    workspace_path: str | None = None
 
 class GenerateRequest(BaseModel):
     task: str
     top_k: int = 5
+    workspace_path: str | None = None
 
+class GenerateAndSaveRequest(BaseModel):
+    task: str
+    top_k: int = 5
+    overwrite: bool = False
+    workspace_path: str | None = None
 
 @router.get("/health")
 def health_check():
@@ -141,7 +154,8 @@ def upload_ui():
 def index_codebase(request: ScanRequest):
     try:
         documents = parse_codebase(request.path)
-        stats = index_documents(documents)
+        workspace_id = normalize_workspace_id(request.path)
+        stats = index_documents(documents, workspace_id=workspace_id)
 
         return {
             "message": "Codebase indexed successfully",
@@ -171,14 +185,22 @@ def index_stats():
 @router.post("/search-codebase")
 def search_codebase(request: SearchRequest):
     try:
+        workspace_id = (
+            normalize_workspace_id(request.workspace_path)
+            if request.workspace_path else None
+        )
+
         matches = search_similar_chunks(
             query=request.query,
-            top_k=request.top_k
+            top_k=request.top_k,
+            workspace_id=workspace_id
         )
 
         return {
             "message": "Search completed successfully",
             "query": request.query,
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
             "matches_found": len(matches),
             "results": matches
         }
@@ -190,9 +212,15 @@ def search_codebase(request: SearchRequest):
 @router.post("/ask-codebase")
 def ask_codebase(request: AskRequest):
     try:
+        workspace_id = (
+            normalize_workspace_id(request.workspace_path)
+            if request.workspace_path else None
+        )
+
         matches = search_similar_chunks(
             query=request.question,
-            top_k=request.top_k
+            top_k=request.top_k,
+            workspace_id=workspace_id
         )
 
         response = build_grounded_answer(
@@ -203,6 +231,8 @@ def ask_codebase(request: AskRequest):
         return {
             "message": "Answer generated successfully",
             "question": request.question,
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
             **response
         }
 
@@ -220,11 +250,13 @@ async def upload_and_index(
     try:
         session_dir = save_uploaded_files(files)
         documents = parse_codebase(str(session_dir))
-        stats = index_documents(documents)
+        workspace_id = normalize_workspace_id(str(session_dir))
+        stats = index_documents(documents, workspace_id=workspace_id)
 
         return {
             "message": "Files uploaded and indexed successfully",
             "upload_path": str(session_dir),
+            "workspace_id": workspace_id,
             "files_uploaded": len(files),
             "documents_parsed": len(documents),
             "sample_files": [doc["path"] for doc in documents[:10]],
@@ -240,9 +272,15 @@ async def upload_and_index(
 @router.post("/generate-code")
 def generate_code(request: GenerateRequest):
     try:
+        workspace_id = (
+            normalize_workspace_id(request.workspace_path)
+            if request.workspace_path else None
+        )
+
         matches = search_similar_chunks(
             query=request.task,
-            top_k=request.top_k
+            top_k=request.top_k,
+            workspace_id=workspace_id
         )
 
         response = build_generation_output(
@@ -252,8 +290,56 @@ def generate_code(request: GenerateRequest):
 
         return {
             "message": "Code skeleton generated successfully",
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
             **response
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@router.post("/generate-and-save")
+def generate_and_save(request: GenerateAndSaveRequest):
+    try:
+        workspace_id = (
+            normalize_workspace_id(request.workspace_path)
+            if request.workspace_path else None
+        )
+
+        matches = search_similar_chunks(
+            query=request.task,
+            top_k=request.top_k,
+            workspace_id=workspace_id
+        )
+
+        generation = build_generation_output(
+            task=request.task,
+            matches=matches
+        )
+
+        write_result = write_generated_code(
+            target_file=generation["target_file"],
+            generated_code=generation["generated_code"],
+            overwrite=request.overwrite,
+            workspace_path=request.workspace_path
+        )
+
+        return {
+            "message": "Code generated and file operation completed",
+            "task": request.task,
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
+            "generation_type": generation["generation_type"],
+            "suggested_relative_target": generation["target_file"],
+            "final_target_file": write_result["target_file"],
+            "write_status": write_result["status"],
+            "write_message": write_result["message"],
+            "references": generation["references"],
+            "notes": generation["notes"]
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+

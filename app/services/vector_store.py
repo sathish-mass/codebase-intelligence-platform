@@ -1,18 +1,22 @@
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 import uuid
 
 import chromadb
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 
 CHROMA_DIR = Path("data/chroma")
 CHROMA_DIR.mkdir(parents=True, exist_ok=True)
 
-COLLECTION_NAME = "codebase_chunks"
+COLLECTION_NAME = "codebase_chunks_v2"
 
 client = chromadb.PersistentClient(path=str(CHROMA_DIR))
 collection = client.get_or_create_collection(name=COLLECTION_NAME)
+
+
+def normalize_workspace_id(workspace_path: str) -> str:
+    return str(Path(workspace_path).resolve())
 
 
 def get_embedder() -> HuggingFaceEmbeddings:
@@ -44,7 +48,7 @@ def chunk_text(text: str, chunk_size: int = 1200, overlap: int = 200) -> List[st
     return chunks
 
 
-def index_documents(documents: List[Dict[str, str]]) -> Dict[str, int]:
+def index_documents(documents: List[Dict[str, str]], workspace_id: str) -> Dict[str, int]:
     embedder = get_embedder()
 
     all_chunks: List[str] = []
@@ -64,6 +68,7 @@ def index_documents(documents: List[Dict[str, str]]) -> Dict[str, int]:
             all_chunks.append(chunk)
             all_metadatas.append(
                 {
+                    "workspace_id": workspace_id,
                     "file_path": doc["path"],
                     "file_name": doc.get("file_name", ""),
                     "source_type": doc.get("source_type", "code"),
@@ -74,6 +79,7 @@ def index_documents(documents: List[Dict[str, str]]) -> Dict[str, int]:
 
     if not all_chunks:
         return {
+            "workspace_id": workspace_id,
             "files_indexed": 0,
             "chunks_indexed": 0,
             "total_chunks_in_collection": collection.count()
@@ -89,20 +95,30 @@ def index_documents(documents: List[Dict[str, str]]) -> Dict[str, int]:
     )
 
     return {
+        "workspace_id": workspace_id,
         "files_indexed": files_indexed,
         "chunks_indexed": len(all_chunks),
         "total_chunks_in_collection": collection.count()
     }
 
 
-def search_similar_chunks(query: str, top_k: int = 5) -> List[Dict]:
+def search_similar_chunks(
+    query: str,
+    top_k: int = 5,
+    workspace_id: Optional[str] = None
+) -> List[Dict]:
     embedder = get_embedder()
     query_embedding = embedder.embed_query(query)
 
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=top_k
-    )
+    query_kwargs = {
+        "query_embeddings": [query_embedding],
+        "n_results": top_k
+    }
+
+    if workspace_id:
+        query_kwargs["where"] = {"workspace_id": workspace_id}
+
+    results = collection.query(**query_kwargs)
 
     documents = results.get("documents", [[]])[0]
     metadatas = results.get("metadatas", [[]])[0]
@@ -113,6 +129,7 @@ def search_similar_chunks(query: str, top_k: int = 5) -> List[Dict]:
     for doc, metadata, distance in zip(documents, metadatas, distances):
         matches.append(
             {
+                "workspace_id": metadata.get("workspace_id"),
                 "file_path": metadata.get("file_path"),
                 "file_name": metadata.get("file_name"),
                 "source_type": metadata.get("source_type"),
