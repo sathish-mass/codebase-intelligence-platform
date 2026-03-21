@@ -2,12 +2,53 @@ from collections import defaultdict
 from typing import Dict, List
 import re
 
+from app.services.llm_service import ask_huggingface_llm
+
 
 def clean_snippet(text: str, max_length: int = 300) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     if len(text) <= max_length:
         return text
     return text[:max_length] + "..."
+
+
+def build_prompt(question: str, matches: List[Dict]) -> str:
+    context_blocks = []
+
+    for idx, match in enumerate(matches, start=1):
+        file_path = match.get("file_path", "unknown")
+        source_type = match.get("source_type", "unknown")
+        chunk_index = match.get("chunk_index", "unknown")
+        content = match.get("content", "")
+
+        context_blocks.append(
+            f"""[Context {idx}]
+File: {file_path}
+Type: {source_type}
+Chunk: {chunk_index}
+
+{content}
+"""
+        )
+
+    context_text = "\n\n".join(context_blocks)
+
+    prompt = f"""
+Use the following retrieved codebase context to answer the question.
+
+Rules:
+- Answer only from the context below.
+- If the answer is not clearly present, say: "I could not find this in the indexed codebase."
+- Mention relevant file paths when possible.
+- Be concise but useful.
+
+Question:
+{question}
+
+Context:
+{context_text}
+"""
+    return prompt.strip()
 
 
 def build_grounded_answer(question: str, matches: List[Dict]) -> Dict:
@@ -45,26 +86,15 @@ def build_grounded_answer(question: str, matches: List[Dict]) -> Dict:
             }
         )
 
-    answer_lines = []
-    answer_lines.append(f"Question: {question}")
-    answer_lines.append("")
-    answer_lines.append("Most relevant files found in the indexed knowledge base:")
+    prompt = build_prompt(question, matches[:5])
 
-    for idx, item in enumerate(evidence, start=1):
-        answer_lines.append(
-            f"{idx}. {item['file_path']} [{item['source_type']}]"
-        )
-
-    answer_lines.append("")
-    answer_lines.append("Most relevant evidence:")
-    for item in evidence:
-        answer_lines.append(
-            f"- {item['file_path']} [{item['source_type']}] "
-            f"(chunk {item['chunk_index']}): {item['snippet']}"
-        )
+    try:
+        llm_answer = ask_huggingface_llm(prompt)
+    except Exception as e:
+        llm_answer = f"LLM answer generation failed: {str(e)}"
 
     return {
-        "answer": "\n".join(answer_lines),
+        "answer": llm_answer,
         "key_files": top_files,
         "evidence": evidence
     }
