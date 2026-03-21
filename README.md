@@ -60,6 +60,15 @@ app
 └── main.py
 ```
 
+## Screenshots
+
+### Home Page
+![Home Page](screenshots/homepage.png)
+
+### App UI
+![App UI](screenshots/app-ui.png)
+
+
 ## Setup
 
 ### 1. Clone repository
