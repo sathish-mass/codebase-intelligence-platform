@@ -68,6 +68,31 @@ def extract_meaningful_name(task: str) -> str:
     return "_".join(words)
 
 
+def strip_code_fences(text: str) -> str:
+    """
+    Clean LLM output so generated code is directly usable.
+
+    Handles cases like:
+    - ```python ... ```
+    - ``` ... ```
+    - extra prose wrapped around one fenced block
+
+    If no fenced block is found, return the text trimmed.
+    """
+    if not text:
+        return ""
+
+    text = text.strip()
+
+    fenced_match = re.search(r"```(?:[a-zA-Z0-9_+-]*)?\n(.*?)```", text, flags=re.DOTALL)
+    if fenced_match:
+        return fenced_match.group(1).strip()
+
+    # fallback: remove stray triple backticks if present
+    text = text.replace("```python", "").replace("```py", "").replace("```", "")
+    return text.strip()
+
+
 def build_fastapi_route(task: str, route_name: str) -> str:
     model_name = "".join(part.capitalize() for part in route_name.split("_")) + "Request"
 
@@ -173,13 +198,23 @@ def build_context_from_matches(matches: List[Dict], max_items: int = 5) -> str:
         file_path = match.get("file_path", "unknown")
         source_type = match.get("source_type", "unknown")
         chunk_index = match.get("chunk_index", "unknown")
+        symbol_name = match.get("symbol_name")
+        symbol_type = match.get("symbol_type")
+        parent_symbol = match.get("parent_symbol")
         content = match.get("content", "")
+
+        symbol_line = ""
+        if symbol_name:
+            if parent_symbol:
+                symbol_line = f"\nSymbol: {symbol_type} {parent_symbol}.{symbol_name}"
+            else:
+                symbol_line = f"\nSymbol: {symbol_type} {symbol_name}"
 
         context_blocks.append(
             f"""[Reference {idx}]
 File: {file_path}
 Type: {source_type}
-Chunk: {chunk_index}
+Chunk: {chunk_index}{symbol_line}
 
 {content}
 """
@@ -231,6 +266,9 @@ def build_generation_output(task: str, matches: List[Dict]) -> Dict:
                 "file_path": match.get("file_path"),
                 "source_type": match.get("source_type"),
                 "chunk_index": match.get("chunk_index"),
+                "symbol_name": match.get("symbol_name"),
+                "symbol_type": match.get("symbol_type"),
+                "parent_symbol": match.get("parent_symbol"),
             }
         )
 
@@ -238,7 +276,8 @@ def build_generation_output(task: str, matches: List[Dict]) -> Dict:
 
     try:
         prompt = build_generation_prompt(task, matches)
-        generated_code = ask_huggingface_llm(prompt)
+        raw_generated_code = ask_huggingface_llm(prompt)
+        generated_code = strip_code_fences(raw_generated_code)
 
         return {
             "task": task,
@@ -248,6 +287,7 @@ def build_generation_output(task: str, matches: List[Dict]) -> Dict:
             "references": references,
             "notes": [
                 "This code was generated using retrieved project context and Hugging Face LLM output.",
+                "Markdown fences were stripped automatically if present.",
                 "Review carefully before saving into the codebase."
             ]
         }

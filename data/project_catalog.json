@@ -1,0 +1,65 @@
+{
+    "/workspaces/codebase-intelligence-platform/uploads/73bff987-13b5-43e5-b69f-7ceceb277127": {
+        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/73bff987-13b5-43e5-b69f-7ceceb277127",
+        "workspace_name": "_order_place_dhan.py",
+        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/73bff987-13b5-43e5-b69f-7ceceb277127",
+        "tags": [],
+        "metadata": {
+            "source": "upload",
+            "files_uploaded": 1,
+            "files_found": 1
+        },
+        "upload_timestamp": "2026-03-25T05:48:59.756612+00:00",
+        "last_indexed_at": "2026-03-25T05:48:59.756628+00:00",
+        "indexed": true,
+        "files_indexed": 1,
+        "chunks_indexed": 15
+    },
+    "/workspaces/codebase-intelligence-platform/uploads/64cf73f3-e593-4959-970f-73905c85bd23": {
+        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/64cf73f3-e593-4959-970f-73905c85bd23",
+        "workspace_name": "Tradehull_support_library + 2 more files",
+        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/64cf73f3-e593-4959-970f-73905c85bd23",
+        "tags": [],
+        "metadata": {
+            "source": "upload",
+            "files_uploaded": 3,
+            "files_found": 3
+        },
+        "upload_timestamp": "2026-03-25T05:51:22.604101+00:00",
+        "last_indexed_at": "2026-03-25T05:51:22.604117+00:00",
+        "indexed": true,
+        "files_indexed": 3,
+        "chunks_indexed": 117
+    },
+    "/workspaces/codebase-intelligence-platform/uploads/0cc9ba86-b1f0-4c0b-9065-e06646345103": {
+        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/0cc9ba86-b1f0-4c0b-9065-e06646345103",
+        "workspace_name": "_order_place_dhan.py",
+        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/0cc9ba86-b1f0-4c0b-9065-e06646345103",
+        "tags": [],
+        "metadata": {
+            "source": "upload",
+            "files_uploaded": 1,
+            "files_found": 1
+        },
+        "upload_timestamp": "2026-03-25T05:51:49.043546+00:00",
+        "last_indexed_at": "2026-03-25T05:51:49.043563+00:00",
+        "indexed": true,
+        "files_indexed": 1,
+        "chunks_indexed": 15
+    },
+    "/workspaces/codebase-intelligence-platform": {
+        "workspace_id": "/workspaces/codebase-intelligence-platform",
+        "workspace_name": "codebase-intelligence-platform",
+        "workspace_path": "/workspaces/codebase-intelligence-platform",
+        "tags": [],
+        "metadata": {
+            "source": "manual_index",
+            "files_found": 27
+        },
+        "upload_timestamp": "2026-03-25T05:59:27.441659+00:00",
+        "last_indexed_at": "2026-03-25T06:00:04.246962+00:00",
+        "indexed": true,
+        "files_indexed": 23,
+        "chunks_indexed": 241
+    }
+}

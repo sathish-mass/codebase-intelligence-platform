@@ -12,6 +12,20 @@ def clean_snippet(text: str, max_length: int = 300) -> str:
     return text[:max_length] + "..."
 
 
+def format_symbol_label(match: Dict) -> str:
+    symbol_name = match.get("symbol_name")
+    symbol_type = match.get("symbol_type")
+    parent_symbol = match.get("parent_symbol")
+
+    if symbol_name and parent_symbol:
+        return f"{symbol_type}: {parent_symbol}.{symbol_name}"
+
+    if symbol_name:
+        return f"{symbol_type}: {symbol_name}"
+
+    return "symbol: unknown"
+
+
 def build_prompt(question: str, matches: List[Dict]) -> str:
     context_blocks = []
 
@@ -19,13 +33,24 @@ def build_prompt(question: str, matches: List[Dict]) -> str:
         file_path = match.get("file_path", "unknown")
         source_type = match.get("source_type", "unknown")
         chunk_index = match.get("chunk_index", "unknown")
+        symbol_name = match.get("symbol_name")
+        symbol_type = match.get("symbol_type")
+        parent_symbol = match.get("parent_symbol")
         content = match.get("content", "")
+
+        symbol_line = f"Symbol: {symbol_type or 'unknown'}"
+        if symbol_name:
+            if parent_symbol:
+                symbol_line = f"Symbol: {symbol_type} {parent_symbol}.{symbol_name}"
+            else:
+                symbol_line = f"Symbol: {symbol_type} {symbol_name}"
 
         context_blocks.append(
             f"""[Context {idx}]
 File: {file_path}
 Type: {source_type}
 Chunk: {chunk_index}
+{symbol_line}
 
 {content}
 """
@@ -39,7 +64,7 @@ Use the following retrieved codebase context to answer the question.
 Rules:
 - Answer only from the context below.
 - If the answer is not clearly present, say: "I could not find this in the indexed codebase."
-- Mention relevant file paths when possible.
+- Mention relevant file paths and symbols when possible.
 - Be concise but useful.
 
 Question:
@@ -73,7 +98,7 @@ def build_grounded_answer(question: str, matches: List[Dict]) -> Dict:
     top_files = [file_path for file_path, _ in ranked_files[:3]]
 
     evidence = []
-    for file_path, file_matches in ranked_files[:3]:
+    for file_path, file_matches in ranked_files[:5]:
         best_match = sorted(file_matches, key=lambda x: x.get("distance", 999))[0]
         evidence.append(
             {
@@ -81,6 +106,10 @@ def build_grounded_answer(question: str, matches: List[Dict]) -> Dict:
                 "file_name": best_match.get("file_name"),
                 "source_type": best_match.get("source_type"),
                 "chunk_index": best_match.get("chunk_index"),
+                "symbol_name": best_match.get("symbol_name"),
+                "symbol_type": best_match.get("symbol_type"),
+                "parent_symbol": best_match.get("parent_symbol"),
+                "symbol_label": format_symbol_label(best_match),
                 "distance": best_match.get("distance"),
                 "snippet": clean_snippet(best_match.get("content", ""))
             }
