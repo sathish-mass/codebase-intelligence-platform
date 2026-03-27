@@ -8,6 +8,10 @@ from fastapi import UploadFile
 
 from app.services.parser import parse_codebase
 from app.services.project_catalog import add_project_to_catalog
+from app.services.project_profile_service import (
+    aggregate_project_metadata,
+    build_catalog_tags_from_project_metadata,
+)
 from app.services.vector_store import index_documents, normalize_workspace_id
 
 UPLOAD_ROOT = Path("uploads")
@@ -40,10 +44,8 @@ def derive_workspace_name(files: List[UploadFile], session_id: str) -> str:
 
 def save_uploaded_files(files: List[UploadFile], tags: Optional[List[str]] = None) -> Dict:
     """
-    Save files, parse them, index them once, and register the project in the catalog.
-
-    This is now the single source of truth for upload + index.
-    Routes should not parse/index the same upload again.
+    Save files, parse them, index them once, enrich project metadata,
+    and register the project in the catalog.
     """
     session_id = str(uuid.uuid4())
     session_dir = (UPLOAD_ROOT / session_id).resolve()
@@ -86,15 +88,25 @@ def save_uploaded_files(files: List[UploadFile], tags: Optional[List[str]] = Non
         replace_existing=True,
     )
 
+    project_profile = aggregate_project_metadata(
+        documents=documents,
+        workspace_name=workspace_name,
+    )
+
+    catalog_tags = sorted(
+        set((tags or []) + build_catalog_tags_from_project_metadata(project_profile))
+    )
+
     add_project_to_catalog(
         workspace_id=workspace_id,
         workspace_name=workspace_name,
-        tags=tags or [],
+        tags=catalog_tags,
         workspace_path=workspace_path,
         metadata={
             "source": "upload",
             "files_uploaded": saved_files,
             "files_found": len(documents),
+            **project_profile,
         },
         files_indexed=index_stats["files_indexed"],
         chunks_indexed=index_stats["chunks_indexed"],
@@ -109,4 +121,5 @@ def save_uploaded_files(files: List[UploadFile], tags: Optional[List[str]] = Non
         "files_found": len(documents),
         "sample_files": [doc["path"] for doc in documents[:10]],
         "index_stats": index_stats,
+        "project_profile": project_profile,
     }

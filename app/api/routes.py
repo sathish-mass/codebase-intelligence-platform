@@ -24,6 +24,15 @@ from app.services.retrieval_router import (
 )
 from app.services.task_router import build_task_routing
 from app.services.project_catalog import get_all_projects, add_project_to_catalog
+from app.services.project_profile_service import (
+    aggregate_project_metadata,
+    build_catalog_tags_from_project_metadata,
+)
+from app.services.edit_location_service import build_edit_location_response
+from app.services.change_impact_service import build_change_impact_response
+from app.services.kt_service import generate_kt_report
+from app.services.implementation_plan_service import build_implementation_plan
+
 
 
 router = APIRouter()
@@ -77,6 +86,33 @@ class SummaryRequest(BaseModel):
 class AIAssistRequest(BaseModel):
     prompt: str
     top_k: int = 5
+    workspace_path: str | None = None
+    workspace_id: str | None = None
+    search_scope: str | None = None
+
+class FindEditLocationRequest(BaseModel):
+    task: str
+    top_k: int = 6
+    workspace_path: str | None = None
+    workspace_id: str | None = None
+    search_scope: str | None = None
+
+class ChangeImpactRequest(BaseModel):
+    task: str
+    top_k: int = 6
+    workspace_path: str | None = None
+    workspace_id: str | None = None
+    search_scope: str | None = None
+
+class KTRequest(BaseModel):
+    task: str
+    workspace_id: str | None = None
+    workspace_path: str | None = None
+    search_scope: str | None = None
+
+class ImplementationPlanRequest(BaseModel):
+    task: str
+    top_k: int = 6
     workspace_path: str | None = None
     workspace_id: str | None = None
     search_scope: str | None = None
@@ -1003,14 +1039,22 @@ def index_codebase(request: ScanRequest):
             replace_existing=True,
         )
 
+        project_profile = aggregate_project_metadata(
+            documents=documents,
+            workspace_name=workspace_name,
+        )
+
+        catalog_tags = build_catalog_tags_from_project_metadata(project_profile)
+
         add_project_to_catalog(
             workspace_id=workspace_id,
             workspace_name=workspace_name,
-            tags=[],
+            tags=catalog_tags,
             workspace_path=request.path,
             metadata={
                 "source": "manual_index",
                 "files_found": len(documents),
+                **project_profile,
             },
             files_indexed=stats["files_indexed"],
             chunks_indexed=stats["chunks_indexed"],
@@ -1022,6 +1066,7 @@ def index_codebase(request: ScanRequest):
             "workspace_path": normalize_workspace_id(request.path),
             "workspace_id": workspace_id,
             "workspace_name": workspace_name,
+            "project_profile": project_profile,
             **stats,
         }
 
@@ -1033,7 +1078,6 @@ def index_codebase(request: ScanRequest):
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
-
 
 @router.get("/index-stats")
 def index_stats():
@@ -1348,3 +1392,141 @@ def list_projects():
         "projects": projects,
         "count": len(projects)
     }
+
+@router.post("/find-edit-location")
+def find_edit_location(request: FindEditLocationRequest):
+    try:
+        workspace_id = resolve_request_workspace_id(
+            workspace_id=request.workspace_id,
+            workspace_path=request.workspace_path,
+        )
+
+        search_result = run_catalog_routed_search(
+            query=request.task,
+            top_k=max(request.top_k * 3, 12),
+            workspace_id=workspace_id,
+            search_scope=request.search_scope,
+        )
+
+        response = build_edit_location_response(
+            task=request.task,
+            matches=search_result["matches"],
+            top_k=request.top_k,
+        )
+
+        return {
+            "message": "Edit locations identified successfully",
+            "task": request.task,
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
+            "search_scope": request.search_scope,
+            "project_routing": search_result["project_routing"],
+            "routing_preferences": search_result["routing_preferences"],
+            **response,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+
+@router.post("/analyze-change-impact")
+def analyze_change_impact(request: ChangeImpactRequest):
+    try:
+        workspace_id = resolve_request_workspace_id(
+            workspace_id=request.workspace_id,
+            workspace_path=request.workspace_path,
+        )
+
+        search_result = run_catalog_routed_search(
+            query=request.task,
+            top_k=max(request.top_k * 4, 16),
+            workspace_id=workspace_id,
+            search_scope=request.search_scope,
+        )
+
+        response = build_change_impact_response(
+            task=request.task,
+            matches=search_result["matches"],
+            top_k=request.top_k,
+        )
+
+        return {
+            "message": "Change impact analyzed successfully",
+            "task": request.task,
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
+            "search_scope": request.search_scope,
+            "project_routing": search_result["project_routing"],
+            "routing_preferences": search_result["routing_preferences"],
+            **response,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@router.post("/kt-summary")
+def get_kt_summary(request: KTRequest):
+    try:
+        workspace_id = resolve_request_workspace_id(
+            workspace_id=request.workspace_id,
+            workspace_path=request.workspace_path,
+        )
+
+        search_result = run_catalog_routed_search(
+            query=request.task,
+            top_k=10,
+            workspace_id=workspace_id,
+            search_scope=request.search_scope,
+        )
+
+        response = generate_kt_report(
+            files=[match.get("file_path") for match in search_result["matches"]],
+            matches=search_result["matches"],
+            task=request.task,
+        )
+
+        return {
+            "message": "KT Summary generated successfully",
+            "task": request.task,
+            "workspace_id": workspace_id,
+            "search_scope": request.search_scope,
+            **response,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@router.post("/implementation-plan")
+def implementation_plan(request: ImplementationPlanRequest):
+    try:
+        workspace_id = resolve_request_workspace_id(
+            workspace_id=request.workspace_id,
+            workspace_path=request.workspace_path,
+        )
+
+        search_result = run_catalog_routed_search(
+            query=request.task,
+            top_k=max(request.top_k * 4, 16),
+            workspace_id=workspace_id,
+            search_scope=request.search_scope,
+        )
+
+        response = build_implementation_plan(
+            task=request.task,
+            matches=search_result["matches"],
+            top_k=request.top_k,
+        )
+
+        return {
+            "message": "Implementation plan generated successfully",
+            "task": request.task,
+            "workspace_path": request.workspace_path,
+            "workspace_id": workspace_id,
+            "search_scope": request.search_scope,
+            "project_routing": search_result["project_routing"],
+            "routing_preferences": search_result["routing_preferences"],
+            **response,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")

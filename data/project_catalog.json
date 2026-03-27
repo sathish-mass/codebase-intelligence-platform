@@ -1,65 +1,151 @@
 {
-    "/workspaces/codebase-intelligence-platform/uploads/73bff987-13b5-43e5-b69f-7ceceb277127": {
-        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/73bff987-13b5-43e5-b69f-7ceceb277127",
-        "workspace_name": "_order_place_dhan.py",
-        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/73bff987-13b5-43e5-b69f-7ceceb277127",
-        "tags": [],
+    "/workspaces/codebase-intelligence-platform/uploads/5c3fc0bf-341f-49c5-89e6-f057bb5af988": {
+        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/5c3fc0bf-341f-49c5-89e6-f057bb5af988",
+        "workspace_name": "Tradehull_support_library.py",
+        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/5c3fc0bf-341f-49c5-89e6-f057bb5af988",
+        "tags": [
+            "api",
+            "cancel",
+            "config",
+            "helper",
+            "helper_style",
+            "margin",
+            "modify",
+            "multi_system_style",
+            "platform_style",
+            "service_style",
+            "system_style",
+            "tradehull",
+            "wrapper",
+            "xts"
+        ],
         "metadata": {
             "source": "upload",
             "files_uploaded": 1,
-            "files_found": 1
+            "files_found": 1,
+            "files_analyzed_for_profile": 1,
+            "project_system_tags": "tradehull,xts",
+            "project_role_tags": "api,cancel,config,helper,margin,modify",
+            "project_style_tags": "helper_style,multi_system_style,platform_style,service_style,system_style",
+            "project_scope_tags": "wrapper",
+            "primary_system": "tradehull",
+            "primary_scope": "wrapper",
+            "primary_role": "api",
+            "primary_source_type": "code",
+            "source_type_counts": {
+                "code": 1
+            },
+            "content_kind_counts": {
+                "code": 1
+            },
+            "scope_kind_counts": {
+                "wrapper": 1
+            },
+            "system_tag_counts": {
+                "tradehull": 1,
+                "xts": 1
+            },
+            "role_tag_counts": {
+                "api": 1,
+                "cancel": 1,
+                "config": 1,
+                "helper": 1,
+                "margin": 1,
+                "modify": 1,
+                "order": 1,
+                "placement": 1,
+                "quantity": 1,
+                "stoploss": 1
+            },
+            "style_tag_counts": {
+                "helper_style": 1,
+                "multi_system_style": 1,
+                "platform_style": 1,
+                "service_style": 1,
+                "system_style": 1
+            },
+            "project_tag_counts": {
+                "support-library": 1,
+                "tradehull": 1,
+                "wrapper": 1,
+                "xts": 1
+            },
+            "project_summary_hint": "Tradehull_support_library.py; tradehull-leaning; wrapper project; code-heavy; roles: api, cancel, config; style: helper_style, multi_system_style"
         },
-        "upload_timestamp": "2026-03-25T05:48:59.756612+00:00",
-        "last_indexed_at": "2026-03-25T05:48:59.756628+00:00",
+        "upload_timestamp": "2026-03-25T16:09:17.599142+00:00",
+        "last_indexed_at": "2026-03-25T16:09:17.599157+00:00",
         "indexed": true,
         "files_indexed": 1,
-        "chunks_indexed": 15
+        "chunks_indexed": 38
     },
-    "/workspaces/codebase-intelligence-platform/uploads/64cf73f3-e593-4959-970f-73905c85bd23": {
-        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/64cf73f3-e593-4959-970f-73905c85bd23",
-        "workspace_name": "Tradehull_support_library + 2 more files",
-        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/64cf73f3-e593-4959-970f-73905c85bd23",
-        "tags": [],
-        "metadata": {
-            "source": "upload",
-            "files_uploaded": 3,
-            "files_found": 3
-        },
-        "upload_timestamp": "2026-03-25T05:51:22.604101+00:00",
-        "last_indexed_at": "2026-03-25T05:51:22.604117+00:00",
-        "indexed": true,
-        "files_indexed": 3,
-        "chunks_indexed": 117
-    },
-    "/workspaces/codebase-intelligence-platform/uploads/0cc9ba86-b1f0-4c0b-9065-e06646345103": {
-        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/0cc9ba86-b1f0-4c0b-9065-e06646345103",
+    "/workspaces/codebase-intelligence-platform/uploads/a6ba6501-24e2-4dad-b8be-8708f1866f4c": {
+        "workspace_id": "/workspaces/codebase-intelligence-platform/uploads/a6ba6501-24e2-4dad-b8be-8708f1866f4c",
         "workspace_name": "_order_place_dhan.py",
-        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/0cc9ba86-b1f0-4c0b-9065-e06646345103",
-        "tags": [],
+        "workspace_path": "/workspaces/codebase-intelligence-platform/uploads/a6ba6501-24e2-4dad-b8be-8708f1866f4c",
+        "tags": [
+            "abstraction",
+            "api",
+            "dhan",
+            "helper",
+            "helper_style",
+            "order",
+            "placement",
+            "platform_style",
+            "quantity",
+            "stoploss",
+            "system_style",
+            "tradehull"
+        ],
         "metadata": {
             "source": "upload",
             "files_uploaded": 1,
-            "files_found": 1
+            "files_found": 1,
+            "files_analyzed_for_profile": 1,
+            "project_system_tags": "dhan,tradehull",
+            "project_role_tags": "api,helper,order,placement,quantity,stoploss",
+            "project_style_tags": "helper_style,platform_style,system_style",
+            "project_scope_tags": "abstraction",
+            "primary_system": "dhan",
+            "primary_scope": "abstraction",
+            "primary_role": "api",
+            "primary_source_type": "code",
+            "source_type_counts": {
+                "code": 1
+            },
+            "content_kind_counts": {
+                "code": 1
+            },
+            "scope_kind_counts": {
+                "abstraction": 1
+            },
+            "system_tag_counts": {
+                "dhan": 1,
+                "tradehull": 1
+            },
+            "role_tag_counts": {
+                "api": 1,
+                "helper": 1,
+                "order": 1,
+                "placement": 1,
+                "quantity": 1,
+                "stoploss": 1,
+                "target": 1
+            },
+            "style_tag_counts": {
+                "helper_style": 1,
+                "platform_style": 1,
+                "system_style": 1
+            },
+            "project_tag_counts": {
+                "dhan": 1,
+                "tradehull": 1
+            },
+            "project_summary_hint": "_order_place_dhan.py; dhan-leaning; abstraction project; code-heavy; roles: api, helper, order; style: helper_style, platform_style"
         },
-        "upload_timestamp": "2026-03-25T05:51:49.043546+00:00",
-        "last_indexed_at": "2026-03-25T05:51:49.043563+00:00",
+        "upload_timestamp": "2026-03-25T16:09:44.175256+00:00",
+        "last_indexed_at": "2026-03-25T16:09:44.175273+00:00",
         "indexed": true,
         "files_indexed": 1,
         "chunks_indexed": 15
-    },
-    "/workspaces/codebase-intelligence-platform": {
-        "workspace_id": "/workspaces/codebase-intelligence-platform",
-        "workspace_name": "codebase-intelligence-platform",
-        "workspace_path": "/workspaces/codebase-intelligence-platform",
-        "tags": [],
-        "metadata": {
-            "source": "manual_index",
-            "files_found": 27
-        },
-        "upload_timestamp": "2026-03-25T05:59:27.441659+00:00",
-        "last_indexed_at": "2026-03-25T06:00:04.246962+00:00",
-        "indexed": true,
-        "files_indexed": 23,
-        "chunks_indexed": 241
     }
 }

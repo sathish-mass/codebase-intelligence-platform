@@ -7,6 +7,16 @@ ALLOWED_EXTENSIONS = {
     ".json", ".yaml", ".yml", ".md", ".txt", ".sql"
 }
 
+IGNORED_DIRS = {
+    ".git",
+    "__pycache__",
+    "venv",
+    ".venv",
+    "node_modules",
+    "uploads",
+    "data",
+}
+
 
 def detect_source_type(file_path: Path) -> str:
     """
@@ -31,8 +41,9 @@ def detect_source_type(file_path: Path) -> str:
 def parse_codebase(base_path: str) -> List[Dict[str, str]]:
     """
     Scan a folder recursively and return readable code/docs/spec files.
+    Ignore runtime/generated folders only when they are inside the selected root.
     """
-    root = Path(base_path)
+    root = Path(base_path).resolve()
 
     if not root.exists():
         raise FileNotFoundError(f"Path does not exist: {base_path}")
@@ -49,7 +60,12 @@ def parse_codebase(base_path: str) -> List[Dict[str, str]]:
         if file_path.suffix.lower() not in ALLOWED_EXTENSIONS:
             continue
 
-        if any(part in {".git", "__pycache__", "venv", ".venv", "node_modules"} for part in file_path.parts):
+        try:
+            relative_parts = file_path.relative_to(root).parts
+        except Exception:
+            relative_parts = file_path.parts
+
+        if any(part in IGNORED_DIRS for part in relative_parts):
             continue
 
         try:

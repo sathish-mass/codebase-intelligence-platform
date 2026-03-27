@@ -16,12 +16,6 @@ def tokenize_text(text: Optional[str]) -> List[str]:
 
 
 def infer_query_system_tags(query: str) -> List[str]:
-    """
-    Infer likely system/entity tags from the user query.
-
-    This uses the same seed keyword idea as the knowledge classifier,
-    but here it is applied to the prompt instead of uploaded knowledge.
-    """
     query_l = normalize_text(query)
     tags = []
 
@@ -33,16 +27,6 @@ def infer_query_system_tags(query: str) -> List[str]:
 
 
 def infer_query_scope_preferences(query: str) -> List[str]:
-    """
-    Infer preferred scope kinds from the query.
-
-    Possible outputs may include:
-    - broker_specific
-    - shared
-    - wrapper
-    - abstraction
-    - hybrid
-    """
     query_l = normalize_text(query)
     scopes: List[str] = []
 
@@ -69,15 +53,6 @@ def infer_query_scope_preferences(query: str) -> List[str]:
 
 
 def infer_query_mode(query: str) -> str:
-    """
-    High-level routing mode inferred from query.
-
-    Modes:
-    - compare
-    - system_specific
-    - shared_style
-    - general
-    """
     query_l = normalize_text(query)
 
     if any(word in query_l for word in ["compare", "difference", "vs", "versus"]):
@@ -93,12 +68,6 @@ def infer_query_mode(query: str) -> str:
 
 
 def infer_project_search_mode(query: str, active_workspace_id: Optional[str] = None) -> str:
-    """
-    Decide whether retrieval should search:
-    - active_only
-    - candidate_multi
-    - all_projects
-    """
     query_l = normalize_text(query)
 
     if any(
@@ -131,11 +100,6 @@ def infer_query_routing_preferences(
     active_workspace_id: Optional[str] = None,
     search_mode_override: Optional[str] = None,
 ) -> Dict:
-    """
-    Build routing preferences from the query.
-
-    This is the first retrieval-planning layer of the platform.
-    """
     system_tags = infer_query_system_tags(query)
     preferred_scope_kinds = infer_query_scope_preferences(query)
     mode = infer_query_mode(query)
@@ -154,12 +118,19 @@ def infer_query_routing_preferences(
     }
 
 
-def score_match(match: Dict, preferences: Dict) -> float:
-    """
-    Compute a routing-aware score for one match.
+def _safe_metadata(project: Dict) -> Dict:
+    metadata = project.get("metadata", {})
+    return metadata if isinstance(metadata, dict) else {}
 
-    Higher score = better final ranking.
-    """
+
+def _metadata_tag_list(metadata: Dict, key: str) -> List[str]:
+    value = metadata.get(key, "")
+    if isinstance(value, list):
+        return [str(item).strip().lower() for item in value if str(item).strip()]
+    return parse_tag_string(value)
+
+
+def score_match(match: Dict, preferences: Dict) -> float:
     distance = float(match.get("distance", 999))
     base_score = -distance
 
@@ -216,9 +187,6 @@ def score_match(match: Dict, preferences: Dict) -> float:
 
 
 def rerank_matches(matches: List[Dict], preferences: Dict) -> List[Dict]:
-    """
-    Re-rank vector search matches using routing-aware metadata scoring.
-    """
     scored = []
 
     for match in matches:
@@ -236,12 +204,23 @@ def _project_search_blob(project: Dict) -> str:
     workspace_path = project.get("workspace_path", "")
     tags = " ".join(project.get("tags", []) or [])
 
-    metadata = project.get("metadata", {})
-    metadata_values = ""
-    if isinstance(metadata, dict):
-        metadata_values = " ".join(str(v) for v in metadata.values())
+    metadata = _safe_metadata(project)
 
-    return normalize_text(f"{workspace_name} {workspace_path} {tags} {metadata_values}")
+    important_meta = " ".join(
+        [
+            str(metadata.get("primary_system", "")),
+            str(metadata.get("primary_scope", "")),
+            str(metadata.get("primary_role", "")),
+            str(metadata.get("primary_source_type", "")),
+            str(metadata.get("project_system_tags", "")),
+            str(metadata.get("project_role_tags", "")),
+            str(metadata.get("project_style_tags", "")),
+            str(metadata.get("project_scope_tags", "")),
+            str(metadata.get("project_summary_hint", "")),
+        ]
+    )
+
+    return normalize_text(f"{workspace_name} {workspace_path} {tags} {important_meta}")
 
 
 def score_project_candidate(
@@ -249,21 +228,30 @@ def score_project_candidate(
     preferences: Dict,
     active_workspace_id: Optional[str] = None,
 ) -> Tuple[float, List[str]]:
-    """
-    Score whether a catalog project is a good candidate for this query.
-    """
     score = 0.0
     reasons: List[str] = []
 
     project_workspace_id = project.get("workspace_id", "")
+    metadata = _safe_metadata(project)
+
     blob = _project_search_blob(project)
     blob_tokens = set(tokenize_text(blob))
 
     query = preferences.get("query", "")
     query_tokens = set(tokenize_text(query))
     query_system_tags = preferences.get("system_tags", [])
+    preferred_scope_kinds = preferences.get("preferred_scope_kinds", [])
     mode = preferences.get("mode", "general")
     project_search_mode = preferences.get("project_search_mode", "active_only")
+
+    project_system_tags = set(_metadata_tag_list(metadata, "project_system_tags"))
+    project_role_tags = set(_metadata_tag_list(metadata, "project_role_tags"))
+    project_style_tags = set(_metadata_tag_list(metadata, "project_style_tags"))
+    project_scope_tags = set(_metadata_tag_list(metadata, "project_scope_tags"))
+
+    primary_system = normalize_text(metadata.get("primary_system", ""))
+    primary_scope = normalize_text(metadata.get("primary_scope", ""))
+    summary_hint = normalize_text(metadata.get("project_summary_hint", ""))
 
     if active_workspace_id and project_workspace_id == active_workspace_id:
         if project_search_mode == "active_only":
@@ -282,26 +270,71 @@ def score_project_candidate(
     for system_tag in query_system_tags:
         system_keywords = SYSTEM_SEED_KEYWORDS.get(system_tag, [])
 
-        if system_tag in blob:
-            score += 3.0
-            reasons.append(f"system_tag:{system_tag}")
+        if system_tag in project_system_tags or system_tag == primary_system:
+            score += 4.0
+            reasons.append(f"project_metadata_system:{system_tag}")
             continue
 
-        if any(keyword in blob for keyword in system_keywords):
+        if system_tag in blob or any(keyword in blob for keyword in system_keywords):
             score += 2.5
             reasons.append(f"system_keyword:{system_tag}")
 
-    if mode == "compare":
-        if query_system_tags:
-            matched_count = 0
-            for system_tag in query_system_tags:
-                system_keywords = SYSTEM_SEED_KEYWORDS.get(system_tag, [])
-                if system_tag in blob or any(keyword in blob for keyword in system_keywords):
-                    matched_count += 1
+    if primary_scope and primary_scope in preferred_scope_kinds:
+        score += 1.8
+        reasons.append(f"primary_scope:{primary_scope}")
 
-            if matched_count:
-                score += matched_count * 1.2
-                reasons.append("compare_project_match")
+    for scope in preferred_scope_kinds:
+        if scope in project_scope_tags:
+            score += 0.9
+            reasons.append(f"project_scope_tag:{scope}")
+
+    query_l = normalize_text(query)
+
+    if "order" in query_l and "order" in project_role_tags:
+        score += 1.2
+        reasons.append("project_role:order")
+
+    if "auth" in query_l and "auth" in project_role_tags:
+        score += 1.2
+        reasons.append("project_role:auth")
+
+    if "wrapper" in query_l and "wrapper" in project_role_tags:
+        score += 1.2
+        reasons.append("project_role:wrapper")
+
+    if mode == "shared_style":
+        if primary_scope in {"shared", "abstraction", "wrapper"}:
+            score += 1.8
+            reasons.append("shared_style_scope_match")
+        if "platform_style" in project_style_tags:
+            score += 1.0
+            reasons.append("platform_style_match")
+
+    if mode == "compare":
+        matched_count = 0
+        for system_tag in query_system_tags:
+            system_keywords = SYSTEM_SEED_KEYWORDS.get(system_tag, [])
+            if (
+                system_tag in project_system_tags
+                or system_tag == primary_system
+                or system_tag in blob
+                or any(keyword in blob for keyword in system_keywords)
+            ):
+                matched_count += 1
+
+        if matched_count:
+            score += matched_count * 1.5
+            reasons.append("compare_project_match")
+
+        if len(project_system_tags) >= 1:
+            score += 0.4
+            reasons.append("project_has_system_profile")
+
+    if summary_hint:
+        summary_overlap = set(tokenize_text(summary_hint)).intersection(query_tokens)
+        if summary_overlap:
+            score += min(1.5, len(summary_overlap) * 0.4)
+            reasons.append("summary_hint_overlap")
 
     return score, reasons
 
@@ -322,9 +355,6 @@ def select_candidate_projects(
     active_workspace_id: Optional[str] = None,
     limit: int = 4,
 ) -> List[Dict]:
-    """
-    Select the project workspaces that should be searched before match reranking.
-    """
     project_search_mode = preferences.get("project_search_mode", "active_only")
 
     scored_projects = []
@@ -384,12 +414,6 @@ def build_project_routing_plan(
     search_mode_override: Optional[str] = None,
     project_limit: int = 4,
 ) -> Dict:
-    """
-    Build the catalog-aware project search plan.
-
-    This is Step 27's new layer:
-    query -> routing preferences -> candidate projects -> vector search
-    """
     preferences = infer_query_routing_preferences(
         query=query,
         active_workspace_id=active_workspace_id,
@@ -424,9 +448,6 @@ def build_project_routing_plan(
 
 
 def routed_search_results(matches: List[Dict], query: str, preferences: Optional[Dict] = None) -> Dict:
-    """
-    Apply retrieval routing on top of already retrieved semantic matches.
-    """
     preferences = preferences or infer_query_routing_preferences(query)
     reranked = rerank_matches(matches, preferences)
 
